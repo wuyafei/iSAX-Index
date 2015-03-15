@@ -41,7 +41,7 @@ public class Node implements Comparable<Node> {
     }
     
     public boolean isEmpty() {
-        return size() == 0;
+        return numChildren() == 0;
     }
     
     public long integrityCheck(int depth) {
@@ -50,11 +50,11 @@ public class Node implements Comparable<Node> {
             assert parent == null;
         }
 //        System.out.println("Node at depth " + depth + "\t" + dispLoad());
-        for (int i = 0; i < load.size(); i++) {
+        for (int i = 0; i < load.dimension(); i++) {
             assert load.getWidth(i) == depth - 1;
         }
         Collections.sort(children);
-        for (int i = 0; i < size() - 1; i++) {
+        for (int i = 0; i < numChildren() - 1; i++) {
             Node first = children.get(i);
             Node second = children.get(i + 1);
             assert first.compareTo(second) < 0;
@@ -70,8 +70,8 @@ public class Node implements Comparable<Node> {
             assert n.parent == this;
             ssCount += n.integrityCheck(depth + 1);
         }
-        assert leafCount <= (1 << load.size());
-        assert nodeCount <= (1 << load.size());
+        assert leafCount <= (1 << load.dimension());
+        assert nodeCount <= (1 << load.dimension());
         
         return ssCount;
     }
@@ -103,7 +103,7 @@ public class Node implements Comparable<Node> {
         return parent == null;
     }
     
-    public int size() {
+    public int numChildren() {
         return children.size();
     }
 
@@ -181,7 +181,7 @@ public class Node implements Comparable<Node> {
     
     public String dispLoad() {
         String l = "";
-        for (int i = 0; i < load.size(); i++) {
+        for (int i = 0; i < load.dimension(); i++) {
             l = l + "\t" + load.getLoad(i) + "(" + load.getWidth(i) + ")";
         }
         return l;
@@ -189,7 +189,7 @@ public class Node implements Comparable<Node> {
     
     public boolean needsSplit(int maxCap) {
         int count = 0;
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < numChildren(); i++) {
             if (children.get(i).isLeaf()) {
                 count++;
             }
@@ -203,12 +203,12 @@ public class Node implements Comparable<Node> {
     
     public boolean needsMerge(int minCap) {
         int count = 0;
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < numChildren(); i++) {
             if (!children.get(i).isLeaf()) {
                 count++;
             }
         }
-        return count == size() && count < minCap;
+        return count == numChildren() && count < minCap;
     }
     
     private int getWidth(int i) {
@@ -236,11 +236,11 @@ public class Node implements Comparable<Node> {
 //        }
 //        load.setCard(c);
 //    }
-    public void add(long position, long timeseries) {
+    public void add(long position) {
         throw new UnsupportedOperationException("not supported");
     }
     
-    public void remove(long position, long timeseries) {
+    public void remove(long positions) {
         throw new UnsupportedOperationException("not supported");
     }
     

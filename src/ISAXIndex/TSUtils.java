@@ -12,43 +12,7 @@ import weka.core.Instances;
  *
  * @author ian
  */
-public class TimeSeries {
-
-    private double[] vals;
-    private long id;
-    private long pos;
-
-    TimeSeries(long position, long timeseries) {
-        pos = position;
-        id = timeseries;
-        vals = null;
-    }
-
-    public TimeSeries(double[] subSeries, long position, long timeseries) {
-        pos = position;
-        id = timeseries;
-        vals = subSeries;
-    }
-
-    public double[] getSeries() {
-        return vals;
-    }
-
-    public long getPosition() {
-        return pos;
-    }
-
-    public long getID() {
-        return id;
-    }
-
-    public boolean equals(TimeSeries o) {
-        return id == o.id && pos == o.pos;
-    }
-
-    public boolean equals(long position, long timeseries) {
-        return id == timeseries && pos == position;
-    }
+public class TSUtils {
 
     /**
      * Computes the mean value of timeseries.
@@ -381,4 +345,5 @@ public class TimeSeries {
 
         return res;
     }
+
 }

@@ -5,8 +5,10 @@
  */
 package Test;
 
+import ISAXIndex.DataHandler;
 import ISAXIndex.Index;
-import ISAXIndex.TimeSeries;
+import ISAXIndex.TSUtils;
+import java.util.ArrayList;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,7 +32,7 @@ public class Test {
     }
 
     public static void main(String[] args) throws Exception {
-        String FILE = "ecg100.arff";
+        String FILE = "C:/users/ian/datasets/ecg/ecg100.arff";
         String DATA_VALUE_ATTRIBUTE = "value0";
         int windowSize = 360;
         int DIMENSIONALITY = 4;
@@ -41,23 +43,29 @@ public class Test {
         // get the data first
         Instances tsData = ConverterUtils.DataSource.read(FILE);
         Attribute dataAttribute = tsData.attribute(DATA_VALUE_ATTRIBUTE);
-        double[] timeseries = TimeSeries.toRealSeries(tsData, dataAttribute);
+        double[] timeseries = TSUtils.toRealSeries(tsData, dataAttribute);
 
         if (LENGTH > 0) {
-            timeseries = TimeSeries.getSubSeries(timeseries, 0, LENGTH);
+            timeseries = TSUtils.getSubSeries(timeseries, 0, LENGTH);
         }
 
-        double mean = TimeSeries.mean(timeseries);
-        double std = TimeSeries.stDev(timeseries);
+        double mean = TSUtils.mean(timeseries);
+        double std = TSUtils.stDev(timeseries);
 
         Index index = new Index(CARDINALITY, DIMENSIONALITY);
         Index.setLoggerLevel(level);
 
 //        Date start = new Date();
         for (int i = 0; i < timeseries.length - windowSize + 1; i++) {
-            double[] subSeries = TimeSeries.getSubSeries(timeseries, i, i + windowSize);
-            TimeSeries ts = new TimeSeries(subSeries,i,0);
-            index.add(ts, mean, std);
+            double[] subSeries = TSUtils.getSubSeries(timeseries, i, i + windowSize);
+            index.add(subSeries, i, mean, std);
+        }
+
+        double[] qs = TSUtils.getSubSeries(timeseries, 5100, 5100 + windowSize);
+        ArrayList<Long> nn = index.NN(qs, mean, std, new DataInMemory(timeseries, windowSize));
+
+        for (long id : nn) {
+            System.out.println(id);
         }
 
 //        Date end = new Date();
@@ -72,10 +80,34 @@ public class Test {
 //        }
 //
         for (int i = 0; i < timeseries.length - windowSize + 1; i++) {
-            double[] subSeries = TimeSeries.getSubSeries(timeseries, i, i + windowSize);
-            TimeSeries ts = new TimeSeries(subSeries,i,0);
-            index.remove(ts, mean, std);
+            double[] subSeries = TSUtils.getSubSeries(timeseries, i, i + windowSize);
+            index.remove(subSeries, i, mean, std);
         }
+    }
+
+}
+
+class DataInMemory extends DataHandler {
+
+    double[] vals = null;
+    int windowSize = 0;
+
+    DataInMemory(double[] ts, int ws) {
+        vals = ts;
+        windowSize = ws;
+    }
+
+    @Override
+    public long size() {
+        return vals.length;
+    }
+
+    @Override
+    public double[] get(long i) {
+        assert i + windowSize <= size();
+        double[] subSeries = TSUtils.getSubSeries(vals, ((int) i), ((int) i) + windowSize);
+        return subSeries;
+
     }
 
 }

@@ -6,7 +6,9 @@
 package ISAXIndex;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.PriorityQueue;
 import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,7 +17,7 @@ import java.util.logging.Logger;
  *
  * @author ian
  */
-public class Index implements Iterable<TimeSeries> {
+public class Index implements Iterable<Long> {
 
     private Node root;
     private int dimension;
@@ -64,10 +66,10 @@ public class Index implements Iterable<TimeSeries> {
         return path;
     }
 
-    public void add(TimeSeries ts, double mean, double std) {
-        logger.finer("subsequence at position " + ts.getPosition() + ", timeseries " + ts.getID());
+    public void add(double[] vals, long position, double mean, double std) {
+        logger.finer("subsequence at position " + position);
 
-        ISAX in = new ISAX(ts.getSeries(), dimension, 1 << (maxWidth), mean, std);
+        ISAX in = new ISAX(vals, dimension, 1 << (maxWidth), mean, std);
 
         // find the path to the corresponding leaf node
         Stack<Node> path = findPath(in);
@@ -79,7 +81,7 @@ public class Index implements Iterable<TimeSeries> {
         }
 
         // add the subsequence
-        path.pop().add(ts.getPosition(), ts.getID());
+        path.pop().add(position);
 
         // check if merge is necessary
         while (!path.isEmpty()) {
@@ -90,20 +92,20 @@ public class Index implements Iterable<TimeSeries> {
         }
     }
 
-    public boolean remove(TimeSeries ts, double mean, double std) {
-        logger.finer("subsequence at position " + ts.getPosition() + ", timeseries " + ts.getID());
+    public boolean remove(double[] vals, long position, double mean, double std) {
+        logger.finer("subsequence at position " + position);
 
-        ISAX out = new ISAX(ts.getSeries(), dimension, 1 << (maxWidth), mean, std);
+        ISAX out = new ISAX(vals, dimension, 1 << (maxWidth), mean, std);
 
         // find the path to the corresponding leaf node
         Stack<Node> path = findPath(out);
         if (!path.peek().equals(out)) {
-            logger.fine("subsequence not found: position " + ts.getPosition() + ", timeseries " + ts.getID());
+            logger.fine("subsequence not found: position " + position);
             return false;
         }
 
         // remove the subsequence
-        path.pop().remove(ts.getPosition(), ts.getID());
+        path.pop().remove(position);
 
         // check if merge is necessary
         while (!path.isEmpty()) {
@@ -127,12 +129,90 @@ public class Index implements Iterable<TimeSeries> {
     }
 
     @Override
-    public Iterator<TimeSeries> iterator() {
-        return new BreadthFirstSearch();
-
+    public Iterator<Long> iterator() {
+        return new BreadthFirstSearch(root);
     }
 
-    class BreadthFirstSearch implements Iterator<TimeSeries> {
+    // approximated search for nearest neighbor
+    public ArrayList<Long> NN(double[] vals, double mean, double std) {
+        ISAX q = new ISAX(vals, dimension, 1 << maxWidth, mean, std);
+        Stack<Node> path = findPath(q);
+        if (path.peek().equals(q)) {
+            Leaf leaf = (Leaf) path.peek();
+            return new ArrayList(leaf.children);
+        } else {
+            ArrayList<Long> result = new ArrayList();
+            Iterator<Long> iter = new BreadthFirstSearch(path.peek());
+            while (iter.hasNext()) {
+                result.add(iter.next());
+            }
+            return result;
+        }
+    }
+
+    public ArrayList<Long> NN(double[] vals, double mean, double std, DataHandler dh) {
+        
+        // use approxmiated search first to speed up exact search
+        double bsfDist = Double.MAX_VALUE;
+        ArrayList<Long> bsfID = new ArrayList();
+        ArrayList<Long> approx = NN(vals, mean, std);
+        for (long id : approx) {
+            double dist = ED.distance(vals, dh.get(id));
+            if (bsfDist > dist) {
+                bsfDist = dist;
+                bsfID.clear();
+                bsfID.add(id);
+            }
+        }
+        assert !bsfID.isEmpty();
+        ISAX q = new ISAX(vals, dimension, 1 << maxWidth, mean, std);
+        PriorityQueue<Node> pq = new PriorityQueue(1, new ComparatorNode(q));
+        pq.add(root);
+        while (!pq.isEmpty()) {
+            Node p = pq.poll();
+            if (p.isLeaf()) {
+                ArrayList<Long> candidates = ((Leaf) p).children;
+                candidates.removeAll(approx);
+                for (long id : candidates) {
+                    double dist = ED.distance(vals, dh.get(id));
+                    if (bsfDist > dist) {
+                        bsfDist = dist;
+                        bsfID.clear();
+                        bsfID.add(id);
+                    } else if (bsfDist == dist) {
+                        bsfID.add(id);
+                    }
+                }
+            } else {
+                for (Node n : p.children) {
+                    // shieh2008isax use MINDIST_PAA_iSAX to obain a tigher lower bound
+                    // For simplicity, we reuse MINDIST_iSAX_iSAX
+                    if (q.minDist(n.load) <= bsfDist) {
+                        pq.add(n);
+                    }
+                }
+            }
+        }
+        return bsfID;
+    }
+
+    class ComparatorNode implements Comparator<Node> {
+
+        ISAX load = null;
+
+        ComparatorNode(ISAX o) {
+            load = o;
+        }
+
+        @Override
+        public int compare(Node n, Node n1) {
+            double minDistT = load.minDist(n.load);
+            double minDistT1 = load.minDist(n1.load);;
+            return (int) (minDistT - minDistT1);
+        }
+    }
+
+    class BreadthFirstSearch implements Iterator<Long> {
 
         // Implement BFS with Iterative deepening depth-first search (IDDFS) method
         private final Stack<Node> path;
@@ -140,9 +220,12 @@ public class Index implements Iterable<TimeSeries> {
         private Leaf next = null;
         private boolean completeSearch = false;
         private int pointer = -1;
+        private Node start = null;
 
-        private BreadthFirstSearch() {
+        private BreadthFirstSearch(Node n) {
+            start = n;
             this.path = new Stack();
+            assert !start.isLeaf();
         }
 
         @Override
@@ -150,13 +233,13 @@ public class Index implements Iterable<TimeSeries> {
             if (next != null) {
                 return true;
             }
-            if (root.isEmpty() || completeSearch) {
+            if (start.isEmpty() || completeSearch) {
                 return false;
             }
 
             while (depth < maxWidth + 2) {
                 if (path.isEmpty()) {
-                    path.push(root);
+                    path.push(start);
                     goDown(depth);
                     if (path.peek().isLeaf() && path.size() == depth) {
                         next = (Leaf) path.peek();
@@ -190,13 +273,13 @@ public class Index implements Iterable<TimeSeries> {
         }
 
         @Override
-        public TimeSeries next() {
+        public Long next() {
             hasNext();
             if (next == null) {
                 return null;
             } else {
-                TimeSeries result = next.get(pointer++);
-                if (pointer >= next.size()) {
+                long result = next.get(pointer++);
+                if (pointer >= next.numChildren()) {
                     next = null;
                     pointer = 0;
                 }
@@ -238,7 +321,7 @@ public class Index implements Iterable<TimeSeries> {
             }
             Node parent = n.parent;
             int idx = parent.children.indexOf(n);
-            if (parent.size() > idx + 1) {
+            if (parent.numChildren() > idx + 1) {
                 return parent.children.get(idx + 1);
             }
             return null;

@@ -5,11 +5,13 @@
  */
 package ISAXIndex;
 
+import java.util.Comparator;
+
 /**
  *
  * @author ian
  */
-public class ISAX implements Comparable<ISAX> {
+public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
 
     private Symbol[] load;
     private int windowSize;
@@ -51,8 +53,8 @@ public class ISAX implements Comparable<ISAX> {
     }
 
     public boolean covers(ISAX o) {
-        assert size() == o.size();
-        for (int i = 0; i < size(); i++) {
+        assert dimension() == o.dimension();
+        for (int i = 0; i < dimension(); i++) {
             if (getWidth(i) > o.getWidth(i)) {
                 return false;
             }
@@ -121,9 +123,9 @@ public class ISAX implements Comparable<ISAX> {
     private static int[] getISAXVals(double[] vals, int dimensionality, double[] cuts, double mean, double sd) {
         int[] l;
         if (vals.length == cuts.length + 1) {
-            l = ts2isax(TimeSeries.zNormalize(vals, mean, sd), cuts);
+            l = ts2isax(TSUtils.zNormalize(vals, mean, sd), cuts);
         } else {
-            l = ts2isax(TimeSeries.zNormalize(TimeSeries.paa(vals, dimensionality), mean, sd), cuts);
+            l = ts2isax(TSUtils.zNormalize(TSUtils.paa(vals, dimensionality), mean, sd), cuts);
         }
         return l;
     }
@@ -161,7 +163,7 @@ public class ISAX implements Comparable<ISAX> {
 
     @Override
     public int compareTo(ISAX o) {
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < dimension(); i++) {
             if (load[i].compareTo(o.load[i]) > 0) {
                 return 1;
             } else if (load[i].compareTo(o.load[i]) < 0) {
@@ -172,7 +174,7 @@ public class ISAX implements Comparable<ISAX> {
     }
 
     public boolean equals(ISAX o) {
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < dimension(); i++) {
             if (!load[i].equals(o.load[i])) {
                 return false;
             }
@@ -180,28 +182,28 @@ public class ISAX implements Comparable<ISAX> {
         return true;
     }
 
-    public int size() {
+    public int dimension() {
         return load.length;
     }
 
     // minimum bounding word
     public ISAX commonPrefix(ISAX o) {
-        assert size() == o.size();
-        Symbol[] r = new Symbol[size()];
-        for (int i = 0; i < size(); i++) {
+        assert dimension() == o.dimension();
+        Symbol[] r = new Symbol[dimension()];
+        for (int i = 0; i < dimension(); i++) {
             r[i] = load[i].commonPrefix(o.load[i]);
         }
         return new ISAX(r);
     }
 
     public double minDist(ISAX o) {
-        assert size() == o.size();
+        assert dimension() == o.dimension();
         double dist = 0;
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < dimension(); i++) {
             double temp = load[i].minDist(o.load[i]);
             dist = temp * temp;
         }
-        return Math.sqrt(dist * windowSize / size());
+        return Math.sqrt(dist * windowSize / dimension());
     }
 
     public boolean extendByOneBit(int a, int maxCard) {
@@ -210,12 +212,17 @@ public class ISAX implements Comparable<ISAX> {
                 return false;
             }
         }
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < dimension(); i++) {
             Symbol s = load[i];
-            int bit = (a & (1 << (size() - 1 - i))) >> (size() - 1 - i);
+            int bit = (a & (1 << (dimension() - 1 - i))) >> (dimension() - 1 - i);
             s.load = (s.load << 1) + bit;
         }
         return true;
+    }
+
+    @Override
+    public int compare(ISAX t, ISAX t1) {
+        return t.compareTo(t1);
     }
 }
 

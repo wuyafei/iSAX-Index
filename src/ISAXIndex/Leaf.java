@@ -13,9 +13,9 @@ import java.util.ArrayList;
  */
 public class Leaf extends Node {
 
-    private ArrayList<TimeSeries> children = new ArrayList();
+    ArrayList<Long> children = new ArrayList();
 
-    Leaf(ISAX word, ArrayList<TimeSeries> incoming) {
+    Leaf(ISAX word, ArrayList<Long> incoming) {
         this(word);
         children = incoming;
     }
@@ -30,30 +30,30 @@ public class Leaf extends Node {
     }
 
     @Override
-    public int size() {
+    public int numChildren() {
         return children.size();
     }
 
     @Override
-    public void add(long position, long timeseries) {
-        children.add(new TimeSeries(position, timeseries));
+    public void add(long position) {
+        children.add(position);
     }
     
 //    public void add(long position) {
 //        add(position, 0);
 //    }
     @Override
-    public void remove(long position, long timeseries) {
-        for (int i = 0; i < size(); i++) {
-            if (children.get(i).equals(position, timeseries)) {
+    public void remove(long position) {
+        for (int i = 0; i < numChildren(); i++) {
+            if (children.get(i).equals(position)) {
                 children.remove(i);
                 break;
             }
         }
     }
 
-    public TimeSeries get(int i) {
-        assert i > 0 && i < size();
+    public long get(int i) {
+        assert i > 0 && i < numChildren();
         return children.get(i);
     }
 
@@ -97,8 +97,8 @@ public class Leaf extends Node {
 
     @Override
     public long integrityCheck(int depth) {
-        assert size() > 0;
-        long ssCount = size();
+        assert numChildren() > 0;
+        long ssCount = numChildren();
 //        System.out.println("Leaf at depth " + depth + "\t" + dispLoad());
 //        System.out.println(dispLoad());
         return ssCount;
