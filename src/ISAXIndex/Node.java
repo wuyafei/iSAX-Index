@@ -15,16 +15,16 @@ import java.util.logging.Logger;
  * @author ian
  */
 public class Node implements Comparable<Node> {
-    
+
     protected Node parent = null;
     protected ArrayList<Node> children = new ArrayList();
     protected ISAX load;
     private static final Logger logger = Logger.getLogger(Node.class.getName());
-    
+
     Node(ISAX word) {
-        load = word;
+        load = new ISAX(word);
     }
-    
+
     Node(ISAX word, ArrayList<Node> incoming) {
         this(word);
         add(incoming);
@@ -33,17 +33,17 @@ public class Node implements Comparable<Node> {
     // for root node
     Node(int dimensionality) {
         this(new ISAX(dimensionality));
-        
+
     }
-    
+
     public boolean equals(ISAX o) {
         return load.equals(o);
     }
-    
+
     public boolean isEmpty() {
         return numChildren() == 0;
     }
-    
+
     public long integrityCheck(int depth) {
         long ssCount = 0;
         if (isRoot()) {
@@ -72,18 +72,18 @@ public class Node implements Comparable<Node> {
         }
         assert leafCount <= (1 << load.dimension());
         assert nodeCount <= (1 << load.dimension());
-        
+
         return ssCount;
     }
-    
+
     public ISAX getLoad() {
         return new ISAX(load);
     }
-    
+
     public int getLoad(int i) {
         return load.getLoad(i);
     }
-    
+
     static void setLoggerLevel(Level level) {
         logger.setLevel(level);
     }
@@ -94,15 +94,15 @@ public class Node implements Comparable<Node> {
     public int compareTo(ISAX o) {
         return load.compareTo(o);
     }
-    
+
     public boolean isLeaf() {
         return false;
     }
-    
+
     public boolean isRoot() {
         return parent == null;
     }
-    
+
     public int numChildren() {
         return children.size();
     }
@@ -140,7 +140,7 @@ public class Node implements Comparable<Node> {
         if (tempChildList.size() > 0) {
             remove(tempChildList);
         }
-        
+
         ArrayList<Node> tempParentList = new ArrayList();
         for (Node leaf : tempChildList) {
             boolean processed = false;
@@ -163,22 +163,22 @@ public class Node implements Comparable<Node> {
 //        Collections.sort(children);
         return;
     }
-    
+
     public void setParent(Node n) {
         parent = n;
     }
-    
+
     public void add(ArrayList<Node> nodeList) {
         for (Node n : nodeList) {
             n.setParent(this);
         }
         children.addAll(nodeList);
     }
-    
+
     public void remove(ArrayList<Node> nodeList) {
         children.removeAll(nodeList);
     }
-    
+
     public String dispLoad() {
         String l = "";
         for (int i = 0; i < load.dimension(); i++) {
@@ -186,7 +186,7 @@ public class Node implements Comparable<Node> {
         }
         return l;
     }
-    
+
     public boolean needsSplit(int maxCap) {
         int count = 0;
         for (int i = 0; i < numChildren(); i++) {
@@ -196,11 +196,11 @@ public class Node implements Comparable<Node> {
         }
         return count > maxCap;
     }
-    
+
     public ArrayList<Node> merge() {
         return children;
     }
-    
+
     public boolean needsMerge(int minCap) {
         int count = 0;
         for (int i = 0; i < numChildren(); i++) {
@@ -210,16 +210,16 @@ public class Node implements Comparable<Node> {
         }
         return count == numChildren() && count < minCap;
     }
-    
+
     private int getWidth(int i) {
         return load.getWidth(i);
     }
-    
+
     @Override
     public int compareTo(Node o) {
         return load.compareTo(o.load);
     }
-    
+
     public void add(Node n) {
         children.add(n);
         n.setParent(this);
@@ -239,13 +239,13 @@ public class Node implements Comparable<Node> {
     public void add(long position) {
         throw new UnsupportedOperationException("not supported");
     }
-    
+
     public void remove(long positions) {
         throw new UnsupportedOperationException("not supported");
     }
-    
+
     public void remove(Node n) {
         children.remove(n);
     }
-    
+
 }

@@ -6,6 +6,7 @@
 package ISAXIndex;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.PriorityQueue;
@@ -66,10 +67,10 @@ public class Index implements Iterable<Long> {
         return path;
     }
 
-    public void add(double[] vals, long position, double mean, double std) {
+    public void add(double[] vals, long position) {
         logger.finer("subsequence at position " + position);
 
-        ISAX in = new ISAX(vals, dimension, 1 << (maxWidth), mean, std);
+        ISAX in = new ISAX(vals, dimension, 1 << (maxWidth));
 
         // find the path to the corresponding leaf node
         Stack<Node> path = findPath(in);
@@ -92,10 +93,10 @@ public class Index implements Iterable<Long> {
         }
     }
 
-    public boolean remove(double[] vals, long position, double mean, double std) {
+    public boolean remove(double[] vals, long position) {
         logger.finer("subsequence at position " + position);
 
-        ISAX out = new ISAX(vals, dimension, 1 << (maxWidth), mean, std);
+        ISAX out = new ISAX(vals, dimension, 1 << (maxWidth));
 
         // find the path to the corresponding leaf node
         Stack<Node> path = findPath(out);
@@ -133,83 +134,274 @@ public class Index implements Iterable<Long> {
         return new BreadthFirstSearch(root);
     }
 
-    // approximated search for nearest neighbor
-    public ArrayList<Long> NN(double[] vals, double mean, double std) {
-        ISAX q = new ISAX(vals, dimension, 1 << maxWidth, mean, std);
-        Stack<Node> path = findPath(q);
-        if (path.peek().equals(q)) {
-            Leaf leaf = (Leaf) path.peek();
-            return new ArrayList(leaf.children);
-        } else {
-            ArrayList<Long> result = new ArrayList();
-            Iterator<Long> iter = new BreadthFirstSearch(path.peek());
-            while (iter.hasNext()) {
-                result.add(iter.next());
-            }
-            return result;
-        }
+    public ArrayList<Long> knn(double[] vals, int k) {
+        return knn(vals, k, (ArrayList<Long>) null);
     }
 
-    public ArrayList<Long> NN(double[] vals, double mean, double std, DataHandler dh) {
-        
-        // use approxmiated search first to speed up exact search
-        double bsfDist = Double.MAX_VALUE;
-        ArrayList<Long> bsfID = new ArrayList();
-        ArrayList<Long> approx = NN(vals, mean, std);
-        for (long id : approx) {
-            double dist = ED.distance(vals, dh.get(id));
-            if (bsfDist > dist) {
-                bsfDist = dist;
-                bsfID.clear();
-                bsfID.add(id);
+    // approximated search of k nearest neighbor
+    public ArrayList<Long> knn(double[] vals, int k, ArrayList<Long> exception) {
+
+        class KNNLeaf {
+
+            class LeafComparator implements Comparator<Leaf> {
+
+                private ISAX p = null;
+
+                LeafComparator(ISAX o) {
+                    p = o;
+                }
+
+                @Override
+                public int compare(Leaf t1, Leaf t2) {
+                    double minDistT1 = p.minDist(t1.load);
+                    double minDistT2 = p.minDist(t2.load);
+                    if (p.equals(t1.load) && !p.equals(t2.load)) {
+                        return -1;
+                    } else if (!p.equals(t1.load) && p.equals(t2.load)) {
+                        return 1;
+                    } else {
+                        return (int) (minDistT1 - minDistT2);
+                    }
+                }
+            }
+
+            private ArrayList<Leaf> list = new ArrayList();
+            private int k = 0;
+            private ArrayList<Long> exception = null;
+            private ISAX p = null;
+            private LeafComparator comp = null;
+
+            KNNLeaf(int _k, ISAX _p, ArrayList<Long> _exception) {
+                k = _k;
+                exception = _exception;
+                p = _p;
+                comp = new LeafComparator(p);
+            }
+
+            public boolean contains(Leaf o) {
+                for (Leaf leaf : list) {
+                    if (o.load.equals(leaf.load)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public boolean add(Leaf leaf) {
+                if (contains(leaf)) {
+                    return false;
+                }
+                double dist = p.minDist(leaf.load);
+                if (dist <= kDist()) {
+                    Leaf leafCopy = new Leaf(leaf);
+                    if (exception != null) {
+                        leafCopy.children.removeAll(exception);
+                        if (leafCopy.isEmpty()) {
+                            return false;
+                        }
+                    }
+                    list.add(leafCopy);
+                    Collections.sort(list, comp);
+
+                    if (numID() > k) {
+                        while (numID() - list.get(list.size() - 1).numChildren() > k) {
+                            list.remove(list.size() - 1);
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            public double kDist() {
+                if (numID() < k) {
+                    return Double.MAX_VALUE;
+                } else {
+                    Leaf lastLeaf = list.get(list.size() - 1);
+                    double bsfDist = lastLeaf.load.minDist(p);
+                    return bsfDist;
+                }
+            }
+
+            public int numID() {
+                int count = 0;
+                for (Leaf leaf : list) {
+                    count += leaf.numChildren();
+                }
+                return count;
+            }
+
+            public ArrayList<Long> toArrayListLong() {
+                ArrayList<Long> results = new ArrayList();
+                for (Leaf leaf : list) {
+                    results.addAll(leaf.children);
+                }
+                return results;
+            }
+
+        }
+
+        assert k > 0 : "Invalid input parameter k. k must be integer greater than zero.";
+
+        ISAX q = new ISAX(vals, dimension, 1 << maxWidth);
+        ArrayList<Node> candidates = new ArrayList();
+        KNNLeaf knn = new KNNLeaf(k, q, exception);
+        candidates.add(root);
+        while (!candidates.isEmpty()) {
+            Node n = candidates.get(0);
+            candidates.remove(0);
+            if (n.isLeaf()) {
+                knn.add((Leaf) n);
+            } else {
+                double dist = n.load.minDist(q);
+                if (dist <= knn.kDist()) {
+                    candidates.addAll(n.children);
+                }
             }
         }
-        assert !bsfID.isEmpty();
-        ISAX q = new ISAX(vals, dimension, 1 << maxWidth, mean, std);
-        PriorityQueue<Node> pq = new PriorityQueue(1, new ComparatorNode(q));
-        pq.add(root);
-        while (!pq.isEmpty()) {
-            Node p = pq.poll();
-            if (p.isLeaf()) {
-                ArrayList<Long> candidates = ((Leaf) p).children;
-                candidates.removeAll(approx);
-                for (long id : candidates) {
+
+        return knn.toArrayListLong();
+
+    }
+
+    public ArrayList<Long> knn(double[] vals, int k, DataHandler dh) {
+        return knn(vals, k, dh, null);
+    }
+
+    // exception aware approximated nearest neighbor
+    public ArrayList<Long> knn(double[] vals, int k, DataHandler dh, ArrayList<Long> exception) {
+
+        class KNNID {
+
+            class IDDist implements Comparable<IDDist> {
+
+                private long id = -1;
+                private double dist = Double.MAX_VALUE;
+
+                IDDist(long _id, double _dist) {
+                    id = _id;
+                    dist = _dist;
+                }
+
+                @Override
+                public int compareTo(IDDist t) {
+                    if (dist > t.dist) {
+                        return 1;
+                    } else if (dist < t.dist) {
+                        return -1;
+                    } else {
+                        return 0;
+                    }
+                }
+
+                public boolean equals(IDDist o) {
+                    return o.id == id;
+                }
+
+                public boolean equals(Long _id) {
+                    return _id == id;
+                }
+            }
+
+            private ArrayList<IDDist> list = new ArrayList();
+            private int k = 0;
+            private ArrayList<Long> exception = null;
+
+            KNNID(int _k, ArrayList<Long> _exception) {
+                k = _k;
+                exception = _exception;
+            }
+
+            public boolean add(Long id, double dist) {
+
+                if (contains(id)) {
+                    return false;
+                }
+                if (exception != null) {
+                    if (exception.contains(id)) {
+                        return false;
+                    }
+                }
+                IDDist o = new IDDist(id, dist);
+                list.add(o);
+                Collections.sort(list);
+//                while (list.size() > k) {
+//                    if (list.get(list.size() - 1).dist > kDist()) {
+//                        list.remove(list.size() - 1);
+//                    } else {
+//                        break;
+//                    }
+//                }
+                return true;
+            }
+
+            public boolean contains(Long id) {
+                for (IDDist iddist : list) {
+                    if (iddist.equals(id)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public double kDist() {
+                if (numID() < k) {
+                    return Double.MAX_VALUE;
+                } else {
+                    return list.get(k - 1).dist;
+                }
+            }
+
+            public int numID() {
+                return list.size();
+            }
+
+            public ArrayList<Long> toArrayListLong() {
+                ArrayList<Long> results = new ArrayList();
+
+                for (int i = 0; i < list.size(); i++) {
+                    if (list.get(i).dist <= kDist()) {
+                        results.add(list.get(i).id);
+                    } else {
+                        break;
+                    }
+                }
+                return results;
+            }
+        }
+
+        ArrayList<Long> results = knn(vals, k, exception);
+        KNNID knn = new KNNID(k, exception);
+        for (Long id : results) {
+            double dist = ED.distance(vals, dh.get(id));
+            knn.add(id, dist);
+        }
+
+        ISAX q = new ISAX(vals, dimension, 1 << maxWidth);
+        ArrayList<Node> candidates = new ArrayList();
+        candidates.add(root);
+        while (!candidates.isEmpty()) {
+            Node n = candidates.get(0);
+            candidates.remove(0);
+            if (n.isLeaf()) {
+                for (Long id : ((Leaf) n).children) {
+                    if (knn.contains(id)) {
+                        continue;
+                    }
                     double dist = ED.distance(vals, dh.get(id));
-                    if (bsfDist > dist) {
-                        bsfDist = dist;
-                        bsfID.clear();
-                        bsfID.add(id);
-                    } else if (bsfDist == dist) {
-                        bsfID.add(id);
+                    if (dist <= knn.kDist()) {
+                        knn.add(id, dist);
                     }
                 }
             } else {
-                for (Node n : p.children) {
-                    // shieh2008isax use MINDIST_PAA_iSAX to obain a tigher lower bound
-                    // For simplicity, we reuse MINDIST_iSAX_iSAX
-                    if (q.minDist(n.load) <= bsfDist) {
-                        pq.add(n);
-                    }
+                double dist = n.load.minDist(q);
+                if (dist <= knn.kDist()) {
+                    candidates.addAll(n.children);
                 }
             }
+
         }
-        return bsfID;
-    }
-
-    class ComparatorNode implements Comparator<Node> {
-
-        ISAX load = null;
-
-        ComparatorNode(ISAX o) {
-            load = o;
-        }
-
-        @Override
-        public int compare(Node n, Node n1) {
-            double minDistT = load.minDist(n.load);
-            double minDistT1 = load.minDist(n1.load);;
-            return (int) (minDistT - minDistT1);
-        }
+        return knn.toArrayListLong();
     }
 
     class BreadthFirstSearch implements Iterator<Long> {
@@ -219,7 +411,7 @@ public class Index implements Iterable<Long> {
         private int depth = 1;
         private Leaf next = null;
         private boolean completeSearch = false;
-        private int pointer = -1;
+        private int pointer = 0;
         private Node start = null;
 
         private BreadthFirstSearch(Node n) {

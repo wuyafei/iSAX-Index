@@ -9,7 +9,7 @@ package ISAXIndex;
  *
  * @author ian
  */
-class ED {
+public class ED {
 
     /**
      * Calculates the square of the Euclidean distance between two 1D points
@@ -19,7 +19,7 @@ class ED {
      * @param p2 The second point.
      * @return The Square of Euclidean distance.
      */
-    static double distance2(double p1, double p2) {
+    public static double distance2(double p1, double p2) {
         double temp = p1 - p2;
         return temp * temp;
     }
@@ -33,7 +33,7 @@ class ED {
      * @return The Euclidean distance.
      * @throws TSException In the case of error.
      */
-    static double distance2(double[] point1, double[] point2) {
+    public static double distance2(double[] point1, double[] point2) {
         assert point1.length == point2.length : "Exception in Euclidean distance: array lengths are not equal";
         Double sum = 0D;
         for (int i = 0; i < point1.length; i++) {
@@ -52,7 +52,7 @@ class ED {
      * @return The Euclidean distance.
      * @throws TSException In the case of error.
      */
-    static double distance2(int[] point1, int[] point2) {
+    public static double distance2(int[] point1, int[] point2) {
         assert point1.length == point2.length : "Exception in Euclidean distance: array lengths are not equal";
         Double sum = 0D;
         for (int i = 0; i < point1.length; i++) {
@@ -69,7 +69,7 @@ class ED {
      * @param p2 The second point.
      * @return The Euclidean distance.
      */
-    static double distance(double p1, double p2) {
+    public static double distance(double p1, double p2) {
         double temp = (p1 - p2);
         double d = temp * temp;
         return Math.sqrt(d);
@@ -83,7 +83,7 @@ class ED {
      * @return The Euclidean distance.
      * @throws TSException In the case of error.
      */
-    static double distance(double[] point1, double[] point2) {
+    public static double distance(double[] point1, double[] point2) {
 
         return Math.sqrt(distance2(point1, point2));
     }
@@ -96,7 +96,7 @@ class ED {
      * @return The Euclidean distance.
      * @throws TSException In the case of error.
      */
-    static double distance(int[] point1, int[] point2) {
+    public static double distance(int[] point1, int[] point2) {
         return Math.sqrt(distance2(point1, point2));
     }
 
@@ -109,7 +109,7 @@ class ED {
      * @return The eclidean distance.
      * @throws TSException if error occures.
      */
-    static double seriesDistance(double[] series1, double[] series2) {
+    public static double seriesDistance(double[] series1, double[] series2) {
         assert series1.length == series2.length : "Exception in Euclidean distance: array lengths are not equal";
         Double res = 0D;
         for (int i = 0; i < series1.length; i++) {
@@ -127,7 +127,7 @@ class ED {
      * @return The eclidean distance.
      * @throws TSException if error occures.
      */
-    static double seriesDistance(double[][] series1, double[][] series2) {
+    public static double seriesDistance(double[][] series1, double[][] series2) {
         assert series1.length == series2.length : "Exception in Euclidean distance: array lengths are not equal";
         Double res = 0D;
         for (int i = 0; i < series1.length; i++) {

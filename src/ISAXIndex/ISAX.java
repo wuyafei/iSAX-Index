@@ -5,19 +5,25 @@
  */
 package ISAXIndex;
 
-import java.util.Comparator;
-
 /**
  *
  * @author ian
  */
-public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
+public class ISAX implements Comparable<ISAX> {
 
     private Symbol[] load;
     private int windowSize;
 
-    public ISAX(double[] vals, int dimensionality, int cardinality, double mean, double sd) {
-        int[] temp = getISAXVals(vals, dimensionality, NormalAlphabet.getCuts(cardinality), mean, sd);
+//    public ISAX(double[] vals, int dimensionality, int cardinality, double mean, double sd) {
+//        int[] temp = getISAXVals(vals, dimensionality, NormalAlphabet.getCuts(cardinality), mean, sd);
+//        load = new Symbol[dimensionality];
+//        for (int i = 0; i < dimensionality; i++) {
+//            load[i] = new Symbol(temp[i], cardinality);
+//        }
+//        windowSize = vals.length;
+//    }
+    public ISAX(double[] vals, int dimensionality, int cardinality) {
+        int[] temp = getISAXVals(vals, dimensionality, NormalAlphabet.getCuts(cardinality));
         load = new Symbol[dimensionality];
         for (int i = 0; i < dimensionality; i++) {
             load[i] = new Symbol(temp[i], cardinality);
@@ -25,14 +31,6 @@ public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
         windowSize = vals.length;
     }
 
-//    public ISAX(double[] vals, int dimensionality, int cardinality) {
-//        int[] temp = getISAXVals(vals, dimensionality, NormalAlphabet.getCuts(cardinality));
-//        load = new ArrayList();
-//        for (int i = 0; i < vals.length; i++) {
-//            load.add(new Symbol(temp[i], cardinality));
-//        }
-//        windowSize = vals.length;
-//    }
     ISAX(ISAX o) {
         this(o.load);
     }
@@ -102,15 +100,16 @@ public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
      * @return The symbolic representation of the given real time-series.
      * @throws TSException If error occurs.
      */
-//    private static int[] getISAXVals(double[] vals, int dimensionality, double[] cuts) {
-//        int[] l;
-//        if (vals.length == cuts.length + 1) {
-//            l = ts2isax(TSUtils.zNormalize(vals), cuts);
-//        } else {
-//            l = ts2isax(TSUtils.zNormalize(TSUtils.paa(vals, dimensionality)), cuts);
-//        }
-//        return l;
-//    }
+    private static int[] getISAXVals(double[] vals, int dimensionality, double[] cuts) {
+        int[] l;
+        if (vals.length == cuts.length + 1) {
+            l = ts2isax(vals, cuts);
+        } else {
+            l = ts2isax(TSUtils.paa(vals, dimensionality), cuts);
+        }
+        return l;
+    }
+
     /**
      * Convert real-valued series into symbolic representation.
      *
@@ -201,7 +200,7 @@ public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
         double dist = 0;
         for (int i = 0; i < dimension(); i++) {
             double temp = load[i].minDist(o.load[i]);
-            dist = temp * temp;
+            dist += temp * temp;
         }
         return Math.sqrt(dist * windowSize / dimension());
     }
@@ -218,11 +217,6 @@ public class ISAX implements Comparable<ISAX>, Comparator<ISAX> {
             s.load = (s.load << 1) + bit;
         }
         return true;
-    }
-
-    @Override
-    public int compare(ISAX t, ISAX t1) {
-        return t.compareTo(t1);
     }
 }
 

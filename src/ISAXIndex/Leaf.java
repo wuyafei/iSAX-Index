@@ -24,6 +24,11 @@ public class Leaf extends Node {
         super(word);
     }
 
+    Leaf(Leaf leaf) {
+        this(leaf.load);
+        children = (ArrayList<Long>) leaf.children.clone();
+    }
+
     @Override
     public boolean isLeaf() {
         return true;
@@ -38,7 +43,7 @@ public class Leaf extends Node {
     public void add(long position) {
         children.add(position);
     }
-    
+
 //    public void add(long position) {
 //        add(position, 0);
 //    }

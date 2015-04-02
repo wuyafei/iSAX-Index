@@ -6,9 +6,11 @@
 package Test;
 
 import ISAXIndex.DataHandler;
+import ISAXIndex.ED;
 import ISAXIndex.Index;
 import ISAXIndex.TSUtils;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,49 +54,66 @@ public class Test {
         double mean = TSUtils.mean(timeseries);
         double std = TSUtils.stDev(timeseries);
 
+        DataInMemory dh = new DataInMemory(timeseries, windowSize, mean, std);
         Index index = new Index(CARDINALITY, DIMENSIONALITY);
         Index.setLoggerLevel(level);
 
-//        Date start = new Date();
         for (int i = 0; i < timeseries.length - windowSize + 1; i++) {
-            double[] subSeries = TSUtils.getSubSeries(timeseries, i, i + windowSize);
-            index.add(subSeries, i, mean, std);
+            index.add(dh.get(i), i);
         }
 
-        double[] qs = TSUtils.getSubSeries(timeseries, 5100, 5100 + windowSize);
-        ArrayList<Long> nn = index.NN(qs, mean, std, new DataInMemory(timeseries, windowSize));
+//        for (long id : index) {
+//            System.out.println(id);
+//        }
+        System.out.println("");
 
-        for (long id : nn) {
-            System.out.println(id);
+        final long exampleID = 5100;
+        final int k = 4;
+        ArrayList<Long> exception = new ArrayList();
+        exception.add(exampleID);
+
+        System.out.println("Find exception aware exact k nearest neighbors of exampleID: " + exampleID);
+        Date start = new Date();
+        ArrayList<Long> knn = index.knn(dh.get(exampleID), k, dh, exception);
+        Date end = new Date();
+        System.out.println("Elapsed time: " + ((double) (end.getTime() - start.getTime()) / 1000));
+
+        for (long id : knn) {
+            double dist = ED.distance(dh.getRaw(id), dh.getRaw(exampleID));
+            System.out.println(id + ":\t" + dist);
         }
 
-//        Date end = new Date();
-//        System.out.println((end.getTime() - start.getTime()) / 1000);
-//        index.integrityCheck();
-//        for (Leaf leaf : index) {
-//            System.out.println(leaf.dispLoad());
-//        }
-//        Iterator<Leaf> leafIterator = index.iterator();
-//        while (leafIterator.hasNext()) {
-//            System.out.println(leafIterator.next().dispLoad());
-//        }
-//
+        System.out.println("");
+
+        System.out.println("Find exception aware approximated k nearest neighbors of exampleID: " + exampleID);
+        start = new Date();
+        knn = index.knn(dh.get(exampleID), k, exception);
+        end = new Date();
+        System.out.println("Elapsed time: " + ((double) (end.getTime() - start.getTime()) / 1000));
+
+        for (long id : knn) {
+            double dist = ED.distance(dh.getRaw(id), dh.getRaw(exampleID));
+            System.out.println(id + ":\t" + dist);
+        }
+
         for (int i = 0; i < timeseries.length - windowSize + 1; i++) {
-            double[] subSeries = TSUtils.getSubSeries(timeseries, i, i + windowSize);
-            index.remove(subSeries, i, mean, std);
+            index.remove(dh.get(i), i);
         }
     }
-
 }
 
 class DataInMemory extends DataHandler {
 
     double[] vals = null;
     int windowSize = 0;
+    double mean = 0.0;
+    double std = 1.0;
 
-    DataInMemory(double[] ts, int ws) {
-        vals = ts;
-        windowSize = ws;
+    DataInMemory(double[] _vals, int _windowSize, double _mean, double _std) {
+        vals = _vals;
+        windowSize = _windowSize;
+        mean = _mean;
+        std = _std;
     }
 
     @Override
@@ -106,8 +125,12 @@ class DataInMemory extends DataHandler {
     public double[] get(long i) {
         assert i + windowSize <= size();
         double[] subSeries = TSUtils.getSubSeries(vals, ((int) i), ((int) i) + windowSize);
-        return subSeries;
-
+        return TSUtils.zNormalize(subSeries, mean, std);
     }
 
+    public double[] getRaw(long i) {
+        assert i + windowSize <= size();
+        double[] subSeries = TSUtils.getSubSeries(vals, ((int) i), ((int) i) + windowSize);
+        return subSeries;
+    }
 }
