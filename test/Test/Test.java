@@ -45,7 +45,7 @@ public class Test {
         // get the data first
         Instances tsData = ConverterUtils.DataSource.read(FILE);
         Attribute dataAttribute = tsData.attribute(DATA_VALUE_ATTRIBUTE);
-        double[] timeseries = TSUtils.toRealSeries(tsData, dataAttribute);
+        double[] timeseries = toRealSeries(tsData, dataAttribute);
 
         if (LENGTH > 0) {
             timeseries = TSUtils.getSubSeries(timeseries, 0, LENGTH);
@@ -100,6 +100,22 @@ public class Test {
             index.remove(dh.get(i), i);
         }
     }
+
+    /**
+     * Converts Instances into double array.
+     *
+     * @param tsData The instances data.
+     * @param dataAttribute The attribute to use in conversion.
+     * @return real-valued array.
+     */
+    public static double[] toRealSeries(Instances tsData, Attribute dataAttribute) {
+        double[] vals = new double[tsData.numInstances()];
+        for (int i = 0; i < tsData.numInstances(); i++) {
+            vals[i] = tsData.instance(i).value(dataAttribute.index());
+        }
+        return vals;
+    }
+
 }
 
 class DataInMemory extends DataHandler {

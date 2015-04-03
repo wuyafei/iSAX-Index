@@ -5,9 +5,6 @@
  */
 package ISAXIndex;
 
-import weka.core.Attribute;
-import weka.core.Instances;
-
 /**
  *
  * @author ian
@@ -34,21 +31,6 @@ public class TSUtils {
             return res / ((Integer) count).doubleValue();
         }
         return Double.NaN;
-    }
-
-    /**
-     * Converts Instances into double array.
-     *
-     * @param tsData The instances data.
-     * @param dataAttribute The attribute to use in conversion.
-     * @return real-valued array.
-     */
-    public static double[] toRealSeries(Instances tsData, Attribute dataAttribute) {
-        double[] vals = new double[tsData.numInstances()];
-        for (int i = 0; i < tsData.numInstances(); i++) {
-            vals[i] = tsData.instance(i).value(dataAttribute.index());
-        }
-        return vals;
     }
 
     /**
